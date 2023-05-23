@@ -52,7 +52,7 @@ public final class DemoUtil {
    * <p>If set to false, the platform's default network stack is used with a {@link CookieManager}
    * configured in {@link #getHttpDataSourceFactory}.
    */
-  private static final boolean USE_CRONET_FOR_NETWORKING = true;
+  private static final boolean USE_CRONET_FOR_NETWORKING = false;
 
   private static final String TAG = "DemoUtil";
   private static final String DOWNLOAD_CONTENT_DIRECTORY = "downloads";

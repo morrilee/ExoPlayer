@@ -15,7 +15,9 @@
  */
 package com.google.android.exoplayer2.drm;
 
+import android.annotation.SuppressLint;
 import android.net.Uri;
+import android.os.Build;
 import android.text.TextUtils;
 import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
@@ -27,13 +29,19 @@ import com.google.android.exoplayer2.upstream.DataSpec;
 import com.google.android.exoplayer2.upstream.HttpDataSource.InvalidResponseCodeException;
 import com.google.android.exoplayer2.upstream.StatsDataSource;
 import com.google.android.exoplayer2.util.Assertions;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.Util;
+import com.google.android.exoplayer2.ExoPlayerLibraryInfo;
 import com.google.common.collect.ImmutableMap;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /** A {@link MediaDrmCallback} that makes requests using {@link DataSource} instances. */
 public final class HttpMediaDrmCallback implements MediaDrmCallback {
@@ -44,6 +52,9 @@ public final class HttpMediaDrmCallback implements MediaDrmCallback {
   @Nullable private final String defaultLicenseUrl;
   private final boolean forceDefaultLicenseUrl;
   private final Map<String, String> keyRequestProperties;
+
+  private final static String AMZ_USERAGENT_STRING = "Android/x.y" + " " + ExoPlayerLibraryInfo.VERSION_SLASHY;
+
 
   /**
    * Constructs an instance.
@@ -127,6 +138,15 @@ public final class HttpMediaDrmCallback implements MediaDrmCallback {
         /* requestProperties= */ Collections.emptyMap());
   }
 
+  private String toString(Map<String, ?> map) {
+    StringBuilder mapAsString = new StringBuilder();
+    for (String key : map.keySet()) {
+      mapAsString.append(key).append(": ").append(map.get(key)).append("\n");
+    }
+    return mapAsString.toString();
+  }
+
+  @SuppressLint("NewApi")
   @Override
   public byte[] executeKeyRequest(UUID uuid, KeyRequest request) throws MediaDrmCallbackException {
     String url = request.getLicenseServerUrl();
@@ -156,7 +176,28 @@ public final class HttpMediaDrmCallback implements MediaDrmCallback {
     synchronized (keyRequestProperties) {
       requestProperties.putAll(keyRequestProperties);
     }
-    return executePost(dataSourceFactory, url, request.getData(), requestProperties);
+    requestProperties.put("User-Agent", AMZ_USERAGENT_STRING);
+
+    String base64LicenseChallenge = new String(Base64.getEncoder().encode(request.getData()));
+    Map<String, String> map = new HashMap<>();
+    map.put("licenseChallenge", base64LicenseChallenge);
+    JSONObject licenseRequest = new JSONObject(map);
+    Log.Logger.DEFAULT.d("AmazonMusic", "POST " + url);
+    Log.Logger.DEFAULT.d("AmazonMusic", licenseRequest.toString());
+    Log.Logger.DEFAULT.d("AmazonMusic", toString(requestProperties));
+    byte[] httpRequestBodyBytes = licenseRequest.toString().getBytes();
+
+    byte[] httpResponseBodyBytes = executePost(dataSourceFactory, url, httpRequestBodyBytes, requestProperties);
+
+    try {
+      JSONObject licenseResponse = new JSONObject( new String(httpResponseBodyBytes));
+      Log.Logger.DEFAULT.d("AmazonMusic", licenseResponse.toString());
+      String base64EncodedLicense = (String) licenseResponse.get("license");
+      return Base64.getDecoder().decode(base64EncodedLicense.getBytes());
+    } catch (JSONException e) {
+      throw new RuntimeException(e);
+    }
+
   }
 
   private static byte[] executePost(
@@ -192,6 +233,29 @@ public final class HttpMediaDrmCallback implements MediaDrmCallback {
           Util.closeQuietly(inputStream);
         }
       }
+    } catch (InvalidResponseCodeException e) {
+
+      /**
+       *  In all errors the response body contains request-id, which can be passed to tech support
+       *  for further investigation
+       *
+       *  400	Bad Request
+       *  401 Unauthorized - Authorization token failed
+       *  403 Forbidden - License denied (cdm revoked) or ineligible content or customer, response body contains DenialReason
+       *  500	Internal Service Error
+       *  503 Service Unavailable (retryable with max retry = 1)
+      **/
+
+      Log.Logger.DEFAULT.d("AmazonMusic", "status code: "+ e.responseCode + " " + e.responseMessage);
+      Log.Logger.DEFAULT.d("AmazonMusic", "response body: "+ new String(e.responseBody, StandardCharsets.UTF_8));
+
+      throw new MediaDrmCallbackException(
+          originalDataSpec,
+          Assertions.checkNotNull(dataSource.getLastOpenedUri()),
+          dataSource.getResponseHeaders(),
+          dataSource.getBytesRead(),
+          /* cause= */ e);
+
     } catch (Exception e) {
       throw new MediaDrmCallbackException(
           originalDataSpec,

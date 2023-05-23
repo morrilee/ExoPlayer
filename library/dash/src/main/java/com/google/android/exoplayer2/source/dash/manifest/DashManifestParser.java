@@ -623,6 +623,9 @@ public class DashManifestParser extends DefaultHandler
           Log.w(TAG, "Skipping malformed cenc:pssh data");
           data = null;
         }
+      } else if (XmlPullParserUtil.isStartTag(xpp, "amz:LicenseUrl") && xpp.next() == XmlPullParser.TEXT) {
+        licenseServerUrl = xpp.getText();
+        Log.w(TAG, "Got license URL: " + licenseServerUrl);
       } else if (data == null
           && C.PLAYREADY_UUID.equals(uuid)
           && XmlPullParserUtil.isStartTag(xpp, "mspr:pro")

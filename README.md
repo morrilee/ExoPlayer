@@ -1,135 +1,102 @@
 # ExoPlayer <img src="https://img.shields.io/github/v/release/google/ExoPlayer.svg?label=latest"/>
+This repo is a clone of the ExoPlayer repo.  It demonstrates the changes needed to play Amazon Music
+Widevine DRM protected music using the default system Widevine L3 library.
 
-ExoPlayer is an application level media player for Android. The latest version
-is published as part of [AndroidX Media][] under a new package name and all
-future development will be in that project.
+## What changes were made
 
-Please refer to our [migration guide and script][] to move your codebase to the
-Media3 package names.
+1) Added two Amazon Music samples to media.exolist.json, one encrypted (see below) and one unencrypted
+2) Added serialize and unserialize of the license request and response from Amazon Music
+3) set the USE_CRONET_FOR_NETWORKING=false to use the default network library to enable
+   App Inspection --> Network Inspector
+4) parse the license request url from `amz:LicenseUrl` in the manifest file
+5) client passes in `User-Agent` to key-headers, remaining key-headers are hard coded
+in the config file for testing
 
-[AndroidX Media]: https://github.com/androidx/media
-[migration guide and script]: https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide
+## media.exolist.json
 
-## Documentation
-
-*   The [developer guide][] provides a wealth of information.
-*   The [class reference][] documents ExoPlayer classes. Note that the classes
-    are documented with their Media3 package names.
-*   The [release notes][] document the major changes in each release.
-*   Follow our [developer blog][] to keep up to date with the latest ExoPlayer
-    developments!
-
-[developer guide]: https://developer.android.com/guide/topics/media/exoplayer
-[class reference]: https://developer.android.com/reference/androidx/media3/common/package-summary
-[release notes]: https://github.com/google/ExoPlayer/blob/release-v2/RELEASENOTES.md
-[developer blog]: https://medium.com/google-exoplayer
-
-## Using ExoPlayer
-
-Please refer to
-[AndroidX Media](https://github.com/androidx/media/blob/release/README.md) for
-the usage instructions of the latest release.
-
-ExoPlayer modules can be obtained from [the Google Maven repository][]. It's
-also possible to clone the repository and depend on the modules locally.
-
-[the Google Maven repository]: https://developer.android.com/studio/build/dependencies#google-maven
-
-### From the Google Maven repository
-
-#### 1. Add ExoPlayer module dependencies
-
-The easiest way to get started using ExoPlayer is to add it as a gradle
-dependency in the `build.gradle` file of your app module. The following will add
-a dependency to the full library:
-
-```gradle
-implementation 'com.google.android.exoplayer:exoplayer:2.X.X'
+The follow DRM protected sample asset is added
+```
+ {
+    "name": "Amazon Music",
+    "samples": [
+      {
+        "name": "Widevine DASH, OPUS/FLAC",
+        "uri": "https://d17vo8z6jop21h.cloudfront.net/api/DashDrm.mpd?dmid=200000450871169&ld=false&sd=true&hd=false&uhd=false&3d=false&ra360=false&ac4=false&mhm1=false&bl=LOW:MEDIUM&v=opus_flac_e&drm=wv&r=b3879d0f-b0d0-493b-a131-be3ca01b8bc7&rgn=NA&dtype=A3RMGO6LYLH7YN",
+        "drm_scheme": "widevine",
+        "drm_license_uri": "[leave empty]",
+        "drm_key_request_properties": {
+          "Authorization": "bearer Atza|IwEBIDhrGR4GQYapkEmMAoAOX_AGwKQzU7MeJ3zJwImZ5J5XABcLqAWCj2HgNpUAwK5qWMEq5uaEsxaPSCl6r1t9pigCGVIE6BLqCx6CbDZwsxt3uWQiqs_Ws52QmXcFdE3WxGj-a9-vWMWmwPdhWbxsLVMJpmpU3nza8c9IM0bjZdUcOpbK8hoeT-WYZ-VRQSMUeMY",
+          "x-amz-music-rid": "b3879d0f-b0d0-493b-a131-be3ca01b8bc7",
+          "x-amz-music-asin": "B0B4TYM52Y",
+          "x-amz-target": "com.amazon.digitalmusiclocator.DigitalMusicLocatorServiceExternal.getLicenseForPlaybackV3",
+          "x-amz-music-device-type": "A3RMGO6LYLH7YN",
+          "x-amz-music-device-id": "[TODO - device id]",
+          "x-amz-music-customer-id": "[TODO - customer id]]",
+          "x-amz-music-drm-type": "WIDEVINE",
+          "Cookie": "rid=b3879d0f-b0d0-493b-a131-be3ca01b8bc7",
+          "Content-Type": "application/json"
+        }
+      },
 ```
 
-where `2.X.X` is your preferred version.
+notes:
 
-As an alternative to the full library, you can depend on only the library
-modules that you actually need. For example the following will add dependencies
-on the Core, DASH and UI library modules, as might be required for an app that
-only plays DASH content:
+* ```drm_license_url``` This is left blank because the actual value is determined 
+by the ```amz:LicenseURL``` in the manifest file
 
-```gradle
-implementation 'com.google.android.exoplayer:exoplayer-core:2.X.X'
-implementation 'com.google.android.exoplayer:exoplayer-dash:2.X.X'
-implementation 'com.google.android.exoplayer:exoplayer-ui:2.X.X'
+* ```drm_key_request_properties``` come from the key-headers in the PlayDirective if your media player
+integrates with Amazon Music via Alexa Voice Services, or they come from key-headers
+in the audio.object is using the Amazon Music SDK (https://developer.amazon.com/docs/music/API_browse_playback.html).
+
+## Authorization
+
+The license request needs to contain a auth token to authenticate the call.
+The auth token is passed in the `Authorization` header.
+
+* `Authorization` header contains the auth token to authenticate
+  license request.  For voice clients this is included int the KeyHeaders.  For non-voice clients, this
+  is the LWA token when the customer logs into Amazon Music.  NOTE: You need to replace the one in the
+  code with a valid auth token.  The one in the code is expired which will result in a 401 for the license request.
+
+## User-Agent
+
+There is a client generated header `User-Agent` that needs to be passed in
+as part of the key-headers.
+
+`User-Agent` Required format: `<deviceName>/<deviceVersion> <appName>/<appVersion>``
+
+ex: `Android/x.y ExoPlayerLib/2.18.7`
+
+## Serialize license request
+
+ExoPlayer obtains the license challenge as a binary blob.  The binary blob is base 64 encoded and
+then encapulated by a json object.
+
 ```
-
-When depending on individual modules they must all be the same version.
-
-The available library modules are listed below. Adding a dependency to the full
-ExoPlayer library is equivalent to adding dependencies on all of the library
-modules individually.
-
-* `exoplayer-core`: Core functionality (required).
-* `exoplayer-dash`: Support for DASH content.
-* `exoplayer-hls`: Support for HLS content.
-* `exoplayer-rtsp`: Support for RTSP content.
-* `exoplayer-smoothstreaming`: Support for SmoothStreaming content.
-* `exoplayer-transformer`: Media transformation functionality.
-* `exoplayer-ui`: UI components and resources for use with ExoPlayer.
-
-In addition to library modules, ExoPlayer has extension modules that depend on
-external libraries to provide additional functionality. Some extensions are
-available from the Maven repository, whereas others must be built manually.
-Browse the [extensions directory][] and their individual READMEs for details.
-
-More information on the library and extension modules that are available can be
-found on the [Google Maven ExoPlayer page][].
-
-[extensions directory]: https://github.com/google/ExoPlayer/tree/release-v2/extensions/
-[Google Maven ExoPlayer page]: https://maven.google.com/web/index.html#com.google.android.exoplayer
-
-#### 2. Turn on Java 8 support
-
-If not enabled already, you also need to turn on Java 8 support in all
-`build.gradle` files depending on ExoPlayer, by adding the following to the
-`android` section:
-
-```gradle
-compileOptions {
-  targetCompatibility JavaVersion.VERSION_1_8
+{
+   "licenseChallenge": [base64EncodedLicenseChallenge]
 }
 ```
 
-#### 3. Enable multidex
+## Deserialize license response
 
-If your Gradle `minSdkVersion` is 20 or lower, you should
-[enable multidex](https://developer.android.com/studio/build/multidex) in order
-to prevent build errors.
+ExoPlayer expects the license to be a binary blob.  The base64encoded license needs to be decoded
+from the license response below.
 
-### Locally
-
-Cloning the repository and depending on the modules locally is required when
-using some ExoPlayer extension modules. It's also a suitable approach if you
-want to make local changes to ExoPlayer, or if you want to use a development
-branch.
-
-First, clone the repository into a local directory:
-
-```sh
-git clone https://github.com/google/ExoPlayer.git
-cd ExoPlayer
+```
+{
+   "license": "[base64EncodedLicense]"
+}
 ```
 
-Next, add the following to your project's `settings.gradle` file, replacing
-`path/to/exoplayer` with the path to your local copy:
+## Other considerations
 
-```gradle
-gradle.ext.exoplayerModulePrefix = 'exoplayer-'
-apply from: file("path/to/exoplayer/core_settings.gradle")
-```
-
-You should now see the ExoPlayer modules appear as part of your project. You can
-depend on them as you would on any other local module, for example:
-
-```gradle
-implementation project(':exoplayer-library-core')
-implementation project(':exoplayer-library-dash')
-implementation project(':exoplayer-library-ui')
-```
+* if license request fails, then retry on 503 only with max retry of 1.  don't retry any other
+failures / errors (e.g. 4xx, 500)
+* for license request failures the response body contains more detailed information
+including request id for further troubleshooting from the backend.  consider logging the request id
+for better troubleshooting.
+* the first 30s of all drm protected tracks is clear (i.e. not encrypted).  to reduce the initial 
+playback delay consider playing the first three 10s segments while fetching the license in parallel.  
+* the default license duration is 24h. to shorten this duration for testing you can pass
+`x-amz-music-license-expiration-secs` http header into the license request

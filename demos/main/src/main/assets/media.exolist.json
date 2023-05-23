@@ -1,5 +1,32 @@
 [
   {
+    "name": "Amazon Music",
+    "samples": [
+      {
+        "name": "Widevine DASH, OPUS/FLAC",
+        "uri": "https://d17vo8z6jop21h.cloudfront.net/api/DashDrm.mpd?dmid=200000450871169&ld=false&sd=true&hd=false&uhd=false&3d=false&ra360=false&ac4=false&mhm1=false&bl=LOW:MEDIUM&v=opus_flac_e&drm=wv&r=b3879d0f-b0d0-493b-a131-be3ca01b8bc7&rgn=NA&dtype=A3RMGO6LYLH7YN",
+        "drm_scheme": "widevine",
+        "drm_license_uri": "[get license url from amz:LicenseUrl in manifest]",
+        "drm_key_request_properties": {
+            "Authorization": "bearer Atza|IwEBIFUD4iiPYPfGsdtYzPc1hT53SJvMJX_mGysg1hHAsYFMBrYTuIfyIFFkz94W7hIPDadtSEZEqbrYxMB7FHMSMEfnX4zdvYH2BAryPaMiFY2iDqYjM8YmmB0XOUNSecEeHoq-QiInqlhET400FNcdWX63hmnCJ92aK1mRMStM3oknnlbttRhWrOuX3m6oihrvyI4",
+            "x-amz-music-rid": "b3879d0f-b0d0-493b-a131-be3ca01b8bc7",
+            "x-amz-music-asin": "B0B4TYM52Y",
+            "x-amz-target": "com.amazon.digitalmusiclocator.DigitalMusicLocatorServiceExternal.getLicenseForPlaybackV3",
+            "x-amz-music-device-type": "A3RMGO6LYLH7YN",
+            "x-amz-music-device-id": "[TODO - add device id]",
+            "x-amz-music-customer-id": "[TODO - add customer id]",
+            "x-amz-music-drm-type": "WIDEVINE",
+            "Cookie": "rid=b3879d0f-b0d0-493b-a131-be3ca01b8bc7",
+            "Content-Type": "application/json"
+        }
+      },
+      {
+        "name": "Unencrypted OPUS/FLAC",
+        "uri": "https://d29r7idq0wxsiz.cloudfront.net/DigitalMusicDeliveryService/Dash.mpd?dmid=200000306008780&c=cf&s=true&sd=true&hd=true&uhd=true&3d=true&ra360=true&mt=US&e=1762809140568&v=opus_flac_u&h=730831c59f4e335cf2b0d743dd6ef28aa0ec20dd8d2b4667a8086e59c3698d83"
+      }
+    ]
+  },
+  {
     "name": "Clear DASH",
     "samples": [
       {
